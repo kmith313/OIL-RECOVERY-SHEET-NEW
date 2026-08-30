@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oil Recovery Register</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#f2ede2;
+    --ledger-line:#c9bd9e;
+    --ink:#1e2a24;
+    --navy:#1b3a4b;
+    --navy-dk:#122733;
+    --copper:#b5651d;
+    --copper-lt:#e0a166;
+    --teal:#2f6b5e;
+    --ok:#2f6b3e;
+    --danger:#9c3b2e;
+    --card:#fbf9f3;
+    --shadow: 0 2px 0 rgba(30,42,36,0.08), 0 8px 24px rgba(30,42,36,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--ledger-line) 1px, transparent 1px) 0 0/100% 34px,
+      var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    padding:28px 18px 60px;
+  }
+  .wrap{max-width:1080px;margin:0 auto;}
+
+  /* header */
+  .masthead{
+    display:flex;align-items:flex-end;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;
+    border-bottom:3px double var(--navy);
+    padding-bottom:14px;margin-bottom:22px;
+  }
+  .masthead h1{
+    font-size:26px;margin:0 0 4px;color:var(--navy-dk);
+    letter-spacing:0.2px;
+  }
+  .masthead .tag{
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--copper);
+    text-transform:uppercase;letter-spacing:1.5px;
+  }
+  .masthead .stamp{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--navy);
+    border:1.5px solid var(--navy);border-radius:3px;padding:5px 10px;
+    transform:rotate(-2deg);opacity:0.75;white-space:nowrap;
+  }
+
+  /* tabs */
+  .tabs{display:flex;gap:2px;margin-bottom:18px;}
+  .tab-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;
+    padding:10px 18px 8px;background:#e7ddc4;color:var(--navy-dk);
+    border:1px solid var(--ledger-line);border-bottom:none;
+    border-radius:6px 6px 0 0;cursor:pointer;letter-spacing:0.5px;
+    transform:translateY(3px);transition:transform .15s, background .15s;
+  }
+  .tab-btn.active{background:var(--card);transform:translateY(0);box-shadow:var(--shadow);}
+  .tab-btn:not(.active):hover{background:#efe6cd;}
+
+  .panel{
+    background:var(--card);border:1px solid var(--ledger-line);
+    border-radius:0 8px 8px 8px;box-shadow:var(--shadow);
+    padding:22px 22px 26px;
+  }
+
+  h2.section-title{
+    font-size:15px;text-transform:uppercase;letter-spacing:1px;
+    color:var(--navy);margin:26px 0 10px;padding-bottom:6px;
+    border-bottom:2px solid var(--navy);
+    display:flex;align-items:center;gap:8px;
+  }
+  h2.section-title:first-child{margin-top:0;}
+  h2.section-title .idx{
+    font-family:'IBM Plex Mono',monospace;background:var(--navy);color:var(--paper);
+    font-size:11px;padding:2px 6px;border-radius:3px;letter-spacing:0;
+  }
+
+  .controls-row{
+    display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;
+  }
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:11.5px;text-transform:uppercase;letter-spacing:0.6px;color:var(--navy);font-weight:600;}
+  select, input[type=month], input[type=number], input[type=text]{
+    font-family:'IBM Plex Mono',monospace;font-size:13.5px;
+    padding:8px 10px;border:1.5px solid var(--ledger-line);border-radius:5px;
+    background:#fff;color:var(--ink);min-width:0;
+  }
+  select:focus, input:focus{outline:2px solid var(--copper);outline-offset:1px;border-color:var(--copper);}
+  input[type=number]{width:88px;text-align:right;}
+
+  button{
+    font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13.5px;
+    padding:9px 18px;border-radius:5px;border:1.5px solid var(--navy);
+    background:var(--navy);color:#fff;cursor:pointer;transition:background .15s, transform .1s;
+  }
+  button:hover{background:var(--navy-dk);}
+  button:active{transform:translateY(1px);}
+  button.secondary{background:transparent;color:var(--navy);}
+  button.secondary:hover{background:#e7ddc4;}
+  button.copper{background:var(--copper);border-color:var(--copper);}
+  button.copper:hover{background:#96521a;}
+  button.danger{background:transparent;border-color:var(--danger);color:var(--danger);padding:5px 10px;font-size:12px;}
+  button.danger:hover{background:var(--danger);color:#fff;}
+  button:disabled{opacity:0.45;cursor:not-allowed;}
+
+  table.reg{
+    width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+    margin-bottom:6px;
+  }
+  table.reg th, table.reg td{
+    border:1px solid var(--ledger-line);padding:6px 5px;text-align:center;
+  }
+  table.reg th{background:#e7ddc4;color:var(--navy-dk);font-weight:600;font-size:11.5px;}
+  table.reg td.rowlabel{
+    text-align:left;font-family:'IBM Plex Sans',sans-serif;font-weight:600;
+    font-size:12px;color:var(--navy);background:#f6f1e2;white-space:nowrap;
+  }
+  table.reg td input[type=number]{
+    width:100%;min-width:56px;border:none;background:transparent;padding:2px;text-align:center;
+  }
+  table.reg td input[type=number]:focus{background:#fff8e8;outline:1.5px solid var(--copper);}
+  table.reg td.readonly{color:#6b6250;background:#f7f4ea;}
+  table.reg td.total{background:#e7ddc4;font-weight:700;color:var(--navy-dk);}
+  table.reg tr.rate-row td{color:#8a7f66;font-style:italic;}
+
+  .oil-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:8px;}
+  .oil-card{border:1px solid var(--ledger-line);border-radius:6px;background:#fff;overflow:hidden;}
+  .oil-card h4{
+    margin:0;padding:8px 10px;background:var(--teal);color:#fff;font-size:12.5px;
+    text-transform:uppercase;letter-spacing:0.5px;
+  }
+  .oil-row{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-top:1px dashed var(--ledger-line);gap:8px;}
+  .oil-row label{font-size:11.5px;color:var(--navy);flex:1;}
+  .oil-row input{width:90px;}
+  .oil-row.closing{background:#f6f1e2;font-weight:700;}
+  .oil-row.closing input, .oil-row.closing .val{color:var(--navy-dk);font-family:'IBM Plex Mono',monospace;}
+  .val{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+
+  .save-row{display:flex;gap:10px;margin-top:16px;align-items:center;}
+  .hint{font-size:12px;color:#7a715c;margin-top:-6px;margin-bottom:14px;}
+
+  table.list{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;}
+  table.list th, table.list td{border:1px solid var(--ledger-line);padding:7px 9px;text-align:left;}
+  table.list th{background:#e7ddc4;color:var(--navy-dk);font-size:11.5px;text-transform:uppercase;}
+  table.list tr:hover td{background:#f6f1e2;}
+  table.list td.num{text-align:right;font-family:'IBM Plex Mono',monospace;}
+  table.list td.actions{white-space:nowrap;text-align:right;}
+  table.list td.actions button{margin-left:6px;padding:4px 10px;font-size:12px;}
+
+  .empty{
+    padding:26px;text-align:center;color:#8a7f66;font-size:13px;
+    border:1.5px dashed var(--ledger-line);border-radius:6px;background:#f7f4ea;
+  }
+  .note{
+    font-size:12px;background:#fdf3df;border:1px solid var(--copper-lt);color:#7a4a12;
+    padding:8px 12px;border-radius:5px;margin:10px 0;
+  }
+  .centre-block{margin-bottom:30px;padding-bottom:20px;border-bottom:2px dashed var(--ledger-line);}
+  .centre-block:last-child{border-bottom:none;}
+  .centre-block h3{
+    font-size:16px;color:var(--copper);margin:0 0 12px;text-transform:uppercase;letter-spacing:0.6px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .centre-block h3::before{content:"§";font-family:'IBM Plex Mono',monospace;color:var(--navy);}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:var(--navy-dk);color:#fff;padding:10px 20px;border-radius:6px;font-size:13px;
+    opacity:0;transition:opacity .25s, transform .25s;pointer-events:none;z-index:50;
+    font-family:'IBM Plex Mono',monospace;box-shadow:0 6px 20px rgba(0,0,0,0.25);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  @media (max-width:640px){
+    .masthead{flex-direction:column;align-items:flex-start;}
+    table.reg{font-size:10.5px;}
+    table.reg td input[type=number]{min-width:38px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <div>
+      <h1>Oil Recovery Register</h1>
+      <div class="tag">Transformer Repair &amp; DTC · Oil Balance Ledger</div>
+    </div>
+  </div>
+
+  <div class="panel" id="sync-panel" style="margin-bottom:18px;">
+    <div class="controls-row" style="margin-bottom:0;align-items:flex-end;">
+      <div class="field" style="flex:1;min-width:260px;">
+        <label>Google Sheet Sync — Apps Script Web App URL</label>
+        <input type="text" id="syncUrl" placeholder="https://script.google.com/macros/s/XXXX/exec" style="width:100%;">
+      </div>
+      <button type="button" id="syncSaveBtn" class="secondary">Save &amp; Connect</button>
+      <div id="syncStatus" style="font-family:'IBM Plex Mono',monospace;font-size:12px;"></div>
+    </div>
+    <p class="hint" id="syncHint" style="margin-top:8px;">Code.gs deploy karke jo URL mile, wo yahan paste karo — uske baad har Save seedha aapki Google Sheet me jayega.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="entry">Data Entry</button>
+    <button class="tab-btn" data-tab="summary">Summary Report</button>
+  </div>
+
+  <!-- ENTRY PANEL -->
+  <div class="panel" id="entry-panel">
+    <div class="controls-row">
+      <div class="field">
+        <label>Workshop Centre</label>
+        <select id="centreSelect"></select>
+      </div>
+      <div class="field">
+        <label>Month</label>
+        <input type="month" id="monthInput">
+      </div>
+      <button id="loadBtn" class="secondary" type="button">Load / New Entry</button>
+      <div id="entryStatus" style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--teal);"></div>
+    </div>
+
+    <form id="entryForm">
+      <h2 class="section-title"><span class="idx">1</span>Total Transformer Repaired</h2>
+      <div style="overflow-x:auto;">
+        <table class="reg" id="repairedTable"></table>
+      </div>
+      <p class="hint">NOS = us capacity ke kitne transformer is mahine repair hue. Oil consumption standard rate se apne aap calculate hoga.</p>
+
+      <h2 class="section-title"><span class="idx">2</span>Total Transformer DTC</h2>
+      <div style="overflow-x:auto;">
+        <table class="reg" id="dtcTable"></table>
+      </div>
+      <p class="hint">NOS = DTC (Dismantled) transformers ki sankhya. Oil recovered standard % (60% / 70%) se calculate hoga.</p>
+
+      <h2 class="section-title"><span class="idx">3</span>Oil Balance (Litres)</h2>
+      <div class="oil-grid" id="oilGrid"></div>
+      <p class="hint">Opening Balance pichhle mahine ki Closing Balance se apne aap bhar jaata hai — chaho to edit kar sakte ho.</p>
+
+      <div class="save-row">
+        <button type="submit" class="copper">Save Month Entry</button>
+        <button type="button" class="secondary" id="clearBtn">Clear Form</button>
+      </div>
+    </form>
+
+    <h2 class="section-title" style="margin-top:34px;"><span class="idx">✓</span>Saved Months — <span id="savedCentreLabel"></span></h2>
+    <div id="savedListWrap"></div>
+  </div>
+
+  <!-- SUMMARY PANEL -->
+  <div class="panel" id="summary-panel" style="display:none;">
+    <div class="controls-row">
+      <div class="field">
+        <label>Centre</label>
+        <select id="sumCentreSelect"></select>
+      </div>
+      <div class="field">
+        <label>From (Month-Year)</label>
+        <input type="month" id="fromMonth">
+      </div>
+      <div class="field">
+        <label>To (Month-Year)</label>
+        <input type="month" id="toMonth">
+      </div>
+      <button type="button" id="genBtn">Generate Summary</button>
+      <button type="button" id="downloadBtn" class="copper" disabled>⬇ Download Excel</button>
+    </div>
+    <div id="summaryOutput"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+const CAP = ["10KVA","16KVA","25KVA","63KVA","100KVA","160KVA","250KVA","400KVA","630KVA","1000KVA"];
+const BASE_RATE = [40,50,90,150,190,220,380,480,650,0];
+const DTC_PCT   = [0.6,0.6,0.6,0.6,0.6,0.7,0.7,0.7,0.7,0];
+const OIL_TYPES = [
+  {key:"fresh",  label:"Fresh Oil"},
+  {key:"bc",     label:"B & C Oil"},
+  {key:"reclaim",label:"Reclaim Oil"},
+  {key:"ou",     label:"O & U"}
+];
+const OIL_FIELDS = [
+  {key:"opening",      label:"Opening Balance"},
+  {key:"received",     label:"Received During Month"},
+  {key:"issuedRepair",label:"Issued for TF Repairing"},
+  {key:"issuedDist",   label:"Issued to Dist. Division"},
+  {key:"issuedOther",  label:"Issued to Other WS / Dirty Oil"}
+];
+const CENTRES = ["AZAMGARH","MAU","BALLIA","EWD"];
+
+let currentEntry = null; // object being edited in the form
+
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._h);
+  t._h = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+function monthLabel(ym){ // "2026-04" -> "Apr-26"
+  if(!ym) return "";
+  const [y,m] = ym.split("-").map(Number);
+  const d = new Date(y, m-1, 1);
+  return d.toLocaleString("en-US",{month:"short"}) + "-" + String(y).slice(2);
+}
+
+function emptyEntry(centre, ym){
+  const e = {centre, monthYear: ym, repaired:{}, dtc:{}, oil:{}};
+  CAP.forEach(c=>{ e.repaired[c]=0; e.dtc[c]=0; });
+  OIL_TYPES.forEach(t=>{
+    e.oil[t.key] = {opening:0, received:0, issuedRepair:0, issuedDist:0, issuedOther:0};
+  });
+  return e;
+}
+
+function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+
+function closingOf(oilObj){
+  return oilObj.opening + oilObj.received - oilObj.issuedRepair - oilObj.issuedDist - oilObj.issuedOther;
+}
+
+/* ---------- Google Sheet sync (via Apps Script Web App) ---------- */
+let SYNC_URL = "";
+
+function entryToPayload(entry){
+  // internal shape -> {repaired:[10], dtc:[10], oil:{opening:{fresh,bc,reclaim,ou}, received:{...}, ...}}
+  const repaired = CAP.map(c=> entry.repaired[c]||0);
+  const dtc = CAP.map(c=> entry.dtc[c]||0);
+  const oil = {};
+  OIL_FIELDS.forEach(f=>{
+    oil[f.key] = {};
+    OIL_TYPES.forEach(t=>{ oil[f.key][t.key] = (entry.oil[t.key] && entry.oil[t.key][f.key]) || 0; });
+  });
+  return {repaired, dtc, oil};
+}
+
+function payloadToEntry(centre, raw){
+  // sheet shape -> internal shape used by the form
+  const entry = emptyEntry(centre, raw.monthYear);
+  CAP.forEach((c,i)=> entry.repaired[c] = num(raw.repaired ? raw.repaired[i] : 0));
+  CAP.forEach((c,i)=> entry.dtc[c] = num(raw.dtc ? raw.dtc[i] : 0));
+  OIL_TYPES.forEach(t=>{
+    OIL_FIELDS.forEach(f=>{
+      const bucket = raw.oil && raw.oil[f.key];
+      entry.oil[t.key][f.key] = bucket ? num(bucket[t.key]) : 0;
+    });
+  });
+  return entry;
+}
+
+async function callSheet(action, params={}){
+  if(!SYNC_URL) throw new Error("NOT_CONNECTED");
+  const body = JSON.stringify({action, ...params});
+  const res = await fetch(SYNC_URL, {
+    method:"POST",
+    headers:{"Content-Type":"text/plain;charset=utf-8"}, // avoids CORS preflight to Apps Script
+    body
+  });
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || "Sheet error");
+  return json.data;
+}
+
+async function checkConnection(){
+  try{ await callSheet("ping"); return true; }catch(e){ return false; }
+}
+
+async function saveEntryToStorage(entry){
+  const payload = entryToPayload(entry);
+  await callSheet("saveEntry", {centre: entry.centre, monthYear: entry.monthYear, payload});
+}
+async function deleteEntryFromStorage(centre, ym){
+  await callSheet("deleteEntry", {centre, monthYear: ym});
+}
+async function loadEntryFromStorage(centre, ym){
+  try{
+    const raw = await callSheet("getEntry", {centre, monthYear: ym});
+    return raw ? payloadToEntry(centre, raw) : null;
+  }catch(e){ return null; }
+}
+async function listEntriesForCentre(centre){
+  try{
+    const raws = await callSheet("listEntries", {centre});
+    const entries = (raws||[]).filter(r=>r && r.monthYear).map(r=> payloadToEntry(centre, r));
+    entries.sort((a,b)=> a.monthYear.localeCompare(b.monthYear));
+    return entries;
+  }catch(e){ return []; }
+}
+
+/* ---------- build tables ---------- */
+function buildCapTable(tbody_id, valuesKey){
+  const table = document.getElementById(tbody_id);
+  let head = "<tr><th style='text-align:left;'>Row</th>";
+  CAP.forEach(c=> head += `<th>${c}</th>`);
+  head += "<th>TOTAL</th></tr>";
+
+  let nosRow = "<tr><td class='rowlabel'>NOS</td>";
+  CAP.forEach((c,i)=> nosRow += `<td><input type="number" min="0" step="1" value="0" data-cap="${i}" class="${valuesKey}-nos"></td>`);
+  nosRow += `<td class="total" id="${valuesKey}-nos-total">0</td></tr>`;
+
+  let rateRow = "<tr class='rate-row'><td class='rowlabel'>Standard Rate (L)</td>";
+  CAP.forEach((c,i)=>{
+    const rate = valuesKey==="rep" ? BASE_RATE[i] : Math.round(BASE_RATE[i]*DTC_PCT[i]*100)/100;
+    rateRow += `<td class="readonly">${rate}</td>`;
+  });
+  rateRow += "<td class='readonly'>—</td></tr>";
+
+  const compLabel = valuesKey==="rep" ? "Consumed as per Standard (L)" : "Oil Recovered as per Standard (L)";
+  let compRow = `<tr><td class="rowlabel">${compLabel}</td>`;
+  CAP.forEach((c,i)=> compRow += `<td class="readonly" id="${valuesKey}-comp-${i}">0</td>`);
+  compRow += `<td class="total" id="${valuesKey}-comp-total">0</td></tr>`;
+
+  table.innerHTML = head + nosRow + rateRow + compRow;
+
+  table.querySelectorAll(`.${valuesKey}-nos`).forEach(inp=>{
+    inp.addEventListener("input", ()=> recompute(valuesKey));
+  });
+}
+
+function recompute(valuesKey){
+  const table = document.getElementById(valuesKey==="rep" ? "repairedTable" : "dtcTable");
+  let totalNos=0, totalComp=0;
+  CAP.forEach((c,i)=>{
+    const inp = table.querySelector(`.${valuesKey}-nos[data-cap="${i}"]`);
+    const nos = num(inp.value);
+    totalNos += nos;
+    const rate = valuesKey==="rep" ? BASE_RATE[i] : Math.round(BASE_RATE[i]*DTC_PCT[i]*100)/100;
+    const comp = nos*rate;
+    totalComp += comp;
+    document.getElementById(`${valuesKey}-comp-${i}`).textContent = comp.toFixed(2).replace(/\.00$/,"");
+  });
+  document.getElementById(`${valuesKey}-nos-total`).textContent = totalNos;
+  document.getElementById(`${valuesKey}-comp-total`).textContent = totalComp.toFixed(2).replace(/\.00$/,"");
+}
+
+function buildOilGrid(){
+  const grid = document.getElementById("oilGrid");
+  grid.innerHTML = "";
+  OIL_TYPES.forEach(t=>{
+    const card = document.createElement("div");
+    card.className = "oil-card";
+    let html = `<h4>${t.label}</h4>`;
+    OIL_FIELDS.forEach(f=>{
+      html += `<div class="oil-row"><label>${f.label}</label>
+        <input type="number" step="0.01" value="0" id="oil-${t.key}-${f.key}" data-type="${t.key}" data-field="${f.key}"></div>`;
+    });
+    html += `<div class="oil-row closing"><label>Closing Balance</label><span class="val" id="oil-${t.key}-closing">0</span></div>`;
+    card.innerHTML = html;
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll("input[type=number]").forEach(inp=>{
+    inp.addEventListener("input", ()=> updateClosing(inp.dataset.type));
+  });
+}
+
+function updateClosing(typeKey){
+  const o = {};
+  OIL_FIELDS.forEach(f=> o[f.key] = num(document.getElementById(`oil-${typeKey}-${f.key}`).value));
+  document.getElementById(`oil-${typeKey}-closing`).textContent = closingOf(o).toFixed(2).replace(/\.00$/,"");
+}
+
+/* ---------- populate form from entry object ---------- */
+function populateForm(entry){
+  currentEntry = entry;
+  CAP.forEach((c,i)=>{
+    document.querySelector(`.rep-nos[data-cap="${i}"]`).value = entry.repaired[c] || 0;
+    document.querySelector(`.dtc-nos[data-cap="${i}"]`).value = entry.dtc[c] || 0;
+  });
+  OIL_TYPES.forEach(t=>{
+    OIL_FIELDS.forEach(f=>{
+      document.getElementById(`oil-${t.key}-${f.key}`).value = (entry.oil[t.key] && entry.oil[t.key][f.key]) || 0;
+    });
+    updateClosing(t.key);
+  });
+  recompute("rep");
+  recompute("dtc");
+}
+
+function readFormIntoEntry(centre, ym){
+  const e = emptyEntry(centre, ym);
+  CAP.forEach((c,i)=>{
+    e.repaired[c] = num(document.querySelector(`.rep-nos[data-cap="${i}"]`).value);
+    e.dtc[c] = num(document.querySelector(`.dtc-nos[data-cap="${i}"]`).value);
+  });
+  OIL_TYPES.forEach(t=>{
+    OIL_FIELDS.forEach(f=>{
+      e.oil[t.key][f.key] = num(document.getElementById(`oil-${t.key}-${f.key}`).value);
+    });
+  });
+  return e;
+}
+
+/* ---------- saved list ---------- */
+async function refreshSavedList(){
+  const centre = document.getElementById("centreSelect").value;
+  document.getElementById("savedCentreLabel").textContent = centre;
+  const entries = await listEntriesForCentre(centre);
+  const wrap = document.getElementById("savedListWrap");
+  if(entries.length===0){
+    wrap.innerHTML = `<div class="empty">Is centre ke liye abhi tak koi mahine ka data save nahi hua.</div>`;
+    return;
+  }
+  let rows = "";
+  entries.forEach(e=>{
+    const repTotal = CAP.reduce((s,c)=>s+(e.repaired[c]||0),0);
+    const dtcTotal = CAP.reduce((s,c)=>s+(e.dtc[c]||0),0);
+    rows += `<tr>
+      <td>${monthLabel(e.monthYear)}</td>
+      <td class="num">${repTotal}</td>
+      <td class="num">${dtcTotal}</td>
+      <td class="actions">
+        <button type="button" class="secondary edit-btn" data-ym="${e.monthYear}">Edit</button>
+        <button type="button" class="danger del-btn" data-ym="${e.monthYear}">Delete</button>
+      </td></tr>`;
+  });
+  wrap.innerHTML = `<table class="list"><thead><tr>
+      <th>Month</th><th>Total Repaired NOS</th><th>Total DTC NOS</th><th></th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+
+  wrap.querySelectorAll(".edit-btn").forEach(b=> b.addEventListener("click", async ()=>{
+    document.getElementById("monthInput").value = b.dataset.ym;
+    await loadForEditing(centre, b.dataset.ym);
+  }));
+  wrap.querySelectorAll(".del-btn").forEach(b=> b.addEventListener("click", async ()=>{
+    if(!confirm(`${monthLabel(b.dataset.ym)} ka data delete karna hai? Yeh wapas nahi hoga.`)) return;
+    await deleteEntryFromStorage(centre, b.dataset.ym);
+    toast("Delete ho gaya");
+    refreshSavedList();
+  }));
+}
+
+async function loadForEditing(centre, ym){
+  let entry = await loadEntryFromStorage(centre, ym);
+  const status = document.getElementById("entryStatus");
+  if(entry){
+    populateForm(entry);
+    status.textContent = `✓ ${monthLabel(ym)} ka saved data load ho gaya`;
+  } else {
+    entry = emptyEntry(centre, ym);
+    // carry forward previous month's closing as opening
+    const [y,m] = ym.split("-").map(Number);
+    const prevDate = new Date(y, m-2, 1);
+    const prevYm = prevDate.getFullYear() + "-" + String(prevDate.getMonth()+1).padStart(2,"0");
+    const prevEntry = await loadEntryFromStorage(centre, prevYm);
+    if(prevEntry){
+      OIL_TYPES.forEach(t=>{
+        entry.oil[t.key].opening = closingOf(prevEntry.oil[t.key]);
+      });
+      status.textContent = `Naya entry — Opening Balance ${monthLabel(prevYm)} ki Closing se bhar diya gaya hai`;
+    } else {
+      status.textContent = `Naya entry — ${monthLabel(ym)}`;
+    }
+    populateForm(entry);
+  }
+}
+
+/* ---------- summary ---------- */
+function monthsInRange(fromYm, toYm){
+  const out = [];
+  let [fy,fm] = fromYm.split("-").map(Number);
+  const [ty,tm] = toYm.split("-").map(Number);
+  let y=fy, m=fm;
+  let guard=0;
+  while((y<ty || (y===ty && m<=tm)) && guard<600){
+    out.push(`${y}-${String(m).padStart(2,"0")}`);
+    m++; if(m>12){m=1;y++;}
+    guard++;
+  }
+  return out;
+}
+
+async function buildCentreSummary(centre, fromYm, toYm){
+  const allEntries = await listEntriesForCentre(centre);
+  const rangeSet = new Set(monthsInRange(fromYm, toYm));
+  const inRange = allEntries.filter(e=> rangeSet.has(e.monthYear)).sort((a,b)=>a.monthYear.localeCompare(b.monthYear));
+  if(inRange.length===0) return null;
+
+  const fromEntry = inRange.find(e=>e.monthYear===fromYm) || inRange[0];
+  const usedFallback = fromEntry.monthYear !== fromYm;
+
+  const repairedSum = {}, dtcSum = {};
+  CAP.forEach(c=>{repairedSum[c]=0; dtcSum[c]=0;});
+  const oilSum = {};
+  OIL_TYPES.forEach(t=> oilSum[t.key] = {received:0, issuedRepair:0, issuedDist:0, issuedOther:0});
+
+  inRange.forEach(e=>{
+    CAP.forEach(c=>{
+      repairedSum[c]+= (e.repaired[c]||0);
+      dtcSum[c]+= (e.dtc[c]||0);
+    });
+    OIL_TYPES.forEach(t=>{
+      const o = e.oil[t.key] || {};
+      oilSum[t.key].received += (o.received||0);
+      oilSum[t.key].issuedRepair += (o.issuedRepair||0);
+      oilSum[t.key].issuedDist += (o.issuedDist||0);
+      oilSum[t.key].issuedOther += (o.issuedOther||0);
+    });
+  });
+
+  const oilFinal = {};
+  OIL_TYPES.forEach(t=>{
+    const opening = (fromEntry.oil[t.key] && fromEntry.oil[t.key].opening) || 0;
+    const s = oilSum[t.key];
+    const closing = opening + s.received - s.issuedRepair - s.issuedDist - s.issuedOther;
+    oilFinal[t.key] = {opening, received:s.received, issuedRepair:s.issuedRepair, issuedDist:s.issuedDist, issuedOther:s.issuedOther, closing};
+  });
+
+  return {
+    centre, fromYm, toYm, monthsCovered: inRange.map(e=>e.monthYear),
+    usedFallback, fallbackMonth: fromEntry.monthYear,
+    repairedSum, dtcSum, oilFinal
+  };
+}
+
+function renderSummaryBlock(sum){
+  const repTotal = CAP.reduce((s,c)=>s+sum.repairedSum[c],0);
+  const dtcTotal = CAP.reduce((s,c)=>s+sum.dtcSum[c],0);
+  const consTotal = CAP.reduce((s,c,i)=>s+sum.repairedSum[c]*BASE_RATE[i],0);
+  const recTotal = CAP.reduce((s,c,i)=>s+sum.dtcSum[c]*BASE_RATE[i]*DTC_PCT[i],0);
+
+  let repRows = "<tr><th style='text-align:left;'>NOS</th>" + CAP.map(c=>`<th>${c}</th>`).join("") + "<th>TOTAL</th></tr>";
+  repRows += "<tr><td class='rowlabel'>Repaired</td>" + CAP.map(c=>`<td>${sum.repairedSum[c]}</td>`).join("") + `<td class="total">${repTotal}</td></tr>`;
+  repRows += "<tr><td class='rowlabel'>Consumed (L)</td>" + CAP.map((c,i)=>`<td class="readonly">${(sum.repairedSum[c]*BASE_RATE[i]).toFixed(0)}</td>`).join("") + `<td class="total">${consTotal.toFixed(0)}</td></tr>`;
+
+  let dtcRows = "<tr><th style='text-align:left;'>NOS</th>" + CAP.map(c=>`<th>${c}</th>`).join("") + "<th>TOTAL</th></tr>";
+  dtcRows += "<tr><td class='rowlabel'>DTC</td>" + CAP.map(c=>`<td>${sum.dtcSum[c]}</td>`).join("") + `<td class="total">${dtcTotal}</td></tr>`;
+  dtcRows += "<tr><td class='rowlabel'>Recovered (L)</td>" + CAP.map((c,i)=>`<td class="readonly">${(sum.dtcSum[c]*BASE_RATE[i]*DTC_PCT[i]).toFixed(1)}</td>`).join("") + `<td class="total">${recTotal.toFixed(1)}</td></tr>`;
+
+  let oilCards = "";
+  OIL_TYPES.forEach(t=>{
+    const o = sum.oilFinal[t.key];
+    oilCards += `<div class="oil-card"><h4>${t.label}</h4>
+      <div class="oil-row"><label>Opening (${monthLabel(sum.fromYm)})</label><span class="val">${o.opening.toFixed(2).replace(/\.00$/,"")}</span></div>
+      <div class="oil-row"><label>Received</label><span class="val">${o.received.toFixed(2).replace(/\.00$/,"")}</span></div>
+      <div class="oil-row"><label>Issued – TF Repair</label><span class="val">${o.issuedRepair.toFixed(2).replace(/\.00$/,"")}</span></div>
+      <div class="oil-row"><label>Issued – Dist Division</label><span class="val">${o.issuedDist.toFixed(2).replace(/\.00$/,"")}</span></div>
+      <div class="oil-row"><label>Issued – Other WS</label><span class="val">${o.issuedOther.toFixed(2).replace(/\.00$/,"")}</span></div>
+      <div class="oil-row closing"><label>Closing Balance</label><span class="val">${o.closing.toFixed(2).replace(/\.00$/,"")}</span></div>
+    </div>`;
+  });
+
+  const fallbackNote = sum.usedFallback
+    ? `<div class="note">⚠ ${monthLabel(sum.fromYm)} ka data nahi mila — Opening Balance ${monthLabel(sum.fallbackMonth)} (range ka pehla available mahina) se liya gaya hai.</div>`
+    : "";
+
+  return `<div class="centre-block">
+    <h3>${sum.centre} — ${monthLabel(sum.fromYm)} to ${monthLabel(sum.toYm)}</h3>
+    ${fallbackNote}
+    <h2 class="section-title" style="margin-top:14px;"><span class="idx">1</span>Total Transformer Repaired</h2>
+    <div style="overflow-x:auto;"><table class="reg">${repRows}</table></div>
+    <h2 class="section-title"><span class="idx">2</span>Total Transformer DTC</h2>
+    <div style="overflow-x:auto;"><table class="reg">${dtcRows}</table></div>
+    <h2 class="section-title"><span class="idx">3</span>Oil Balance (Litres) — Opening always from ${monthLabel(sum.fromYm)}</h2>
+    <div class="oil-grid">${oilCards}</div>
+  </div>`;
+}
+
+let lastSummaries = []; // for download
+
+async function generateSummary(){
+  const centreSel = document.getElementById("sumCentreSelect").value;
+  const fromYm = document.getElementById("fromMonth").value;
+  const toYm = document.getElementById("toMonth").value;
+  const out = document.getElementById("summaryOutput");
+  const dlBtn = document.getElementById("downloadBtn");
+
+  if(!fromYm || !toYm){
+    out.innerHTML = `<div class="empty">From aur To dono month-year chuno.</div>`;
+    dlBtn.disabled = true;
+    return;
+  }
+  if(fromYm > toYm){
+    out.innerHTML = `<div class="empty">"From" month, "To" month se pehle hona chahiye.</div>`;
+    dlBtn.disabled = true;
+    return;
+  }
+
+  const centresToRun = centreSel === "__ALL__" ? CENTRES : [centreSel];
+  const summaries = [];
+  for(const c of centresToRun){
+    const s = await buildCentreSummary(c, fromYm, toYm);
+    if(s) summaries.push(s);
+  }
+
+  if(summaries.length===0){
+    out.innerHTML = `<div class="empty">Is date range me chuni gayi centre(s) ke liye koi saved data nahi mila.</div>`;
+    dlBtn.disabled = true;
+    lastSummaries = [];
+    return;
+  }
+
+  out.innerHTML = summaries.map(renderSummaryBlock).join("");
+  lastSummaries = summaries;
+  dlBtn.disabled = false;
+}
+
+/* ---------- excel export ---------- */
+function buildSheetAOA(sum){
+  const rows = [];
+  const rangeLabel = `${monthLabel(sum.fromYm)} to ${monthLabel(sum.toYm)}`;
+  rows.push(["MONTH", rangeLabel]);
+  rows.push(["ELECTRICITY WORKSHOP CENTRE:-","","","","","","","",sum.centre]);
+  rows.push(["TOTAL TRANSFORMER REPAIRED","","","","","","","","","","","TOTAL"]);
+  rows.push(["CAPACITY",...CAP]);
+  const repTotal = CAP.reduce((s,c)=>s+sum.repairedSum[c],0);
+  rows.push(["NOS", ...CAP.map(c=>sum.repairedSum[c]), repTotal]);
+  rows.push(["stant oil consum.", ...BASE_RATE]);
+  const consVals = CAP.map((c,i)=>sum.repairedSum[c]*BASE_RATE[i]);
+  const consTotal = consVals.reduce((a,b)=>a+b,0);
+  rows.push(["consume as per standered", ...consVals, consTotal]);
+  rows.push([]);
+  rows.push(["TOTAL TRANSFORMER DTC","","","","","","","","","","","TOTAL"]);
+  rows.push(["CAPACITY",...CAP]);
+  const dtcTotal = CAP.reduce((s,c)=>s+sum.dtcSum[c],0);
+  rows.push(["NOS", ...CAP.map(c=>sum.dtcSum[c]), dtcTotal]);
+  rows.push(["standered oil", ...CAP.map((c,i)=>Math.round(BASE_RATE[i]*DTC_PCT[i]*100)/100)]);
+  const recVals = CAP.map((c,i)=>sum.dtcSum[c]*BASE_RATE[i]*DTC_PCT[i]);
+  const recTotal = recVals.reduce((a,b)=>a+b,0);
+  rows.push(["OIL RECOVERED AS PER STANDERED", ...recVals, recTotal]);
+  rows.push([]);
+  rows.push(["","Fresh Oil","","B&C Oil","","Reclaim Oil","","O&U"]);
+  const T = OIL_TYPES.map(t=>sum.oilFinal[t.key]);
+  const rowFor = (label, field) => ["", "" ,"", "", "", "", "", ""].map((_,i)=>{
+    return null;
+  });
+  function oilRow(label, field){
+    const arr = new Array(8).fill("");
+    arr[0]=label;
+    // positions: fresh=col2(idx1), bc=col4(idx3), reclaim=col6(idx5), ou=col8(idx7) -> but label is col1(A)
+    // Using A=label, B=fresh, D=bc, F=reclaim, H=ou -> array indices: 0:A,1:B,2:C,3:D,4:E,5:F,6:G,7:H
+    arr[1]=T[0][field]; arr[3]=T[1][field]; arr[5]=T[2][field]; arr[7]=T[3][field];
+    return arr;
+  }
+  rows.push(oilRow("Opening Balance","opening"));
+  rows.push(oilRow("Received During Month","received"));
+  rows.push(oilRow("issued for TF Reaparing","issuedRepair"));
+  rows.push(oilRow("issued to Dist division","issuedDist"));
+  rows.push(oilRow("issued to other workshop /  dirty oil for reclaim","issuedOther"));
+  rows.push(oilRow("closing balance","closing"));
+  rows.push([]);
+  rows.push(["CALCULATED OIL RECOVERY", recTotal.toFixed(2)]);
+  rows.push([]);
+  rows.push(["Months covered:", sum.monthsCovered.map(monthLabel).join(", ")]);
+  return rows;
+}
+
+function downloadExcel(){
+  if(!lastSummaries.length) return;
+  const wb = XLSX.utils.book_new();
+  lastSummaries.forEach(sum=>{
+    const aoa = buildSheetAOA(sum);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:34}].concat(new Array(10).fill({wch:9})).concat([{wch:10}]);
+    XLSX.utils.book_append_sheet(wb, ws, sum.centre.substring(0,31));
+  });
+  const first = lastSummaries[0];
+  const fname = `Oil_Recovery_Summary_${first.fromYm}_to_${first.toYm}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  toast("Excel download ho gaya");
+}
+
+/* ---------- init ---------- */
+function populateCentreSelects(){
+  const c1 = document.getElementById("centreSelect");
+  const c2 = document.getElementById("sumCentreSelect");
+  c1.innerHTML = CENTRES.map(c=>`<option value="${c}">${c}</option>`).join("");
+  c2.innerHTML = `<option value="__ALL__">All Centres (separate sheets)</option>` + CENTRES.map(c=>`<option value="${c}">${c}</option>`).join("");
+}
+
+function defaultMonth(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+}
+
+function switchTab(tab){
+  document.querySelectorAll(".tab-btn").forEach(b=> b.classList.toggle("active", b.dataset.tab===tab));
+  document.getElementById("entry-panel").style.display = tab==="entry" ? "" : "none";
+  document.getElementById("summary-panel").style.display = tab==="summary" ? "" : "none";
+}
+
+function setSyncStatus(connected){
+  const el = document.getElementById("syncStatus");
+  if(connected){
+    el.textContent = "● Connected — Google Sheet me live save ho raha hai";
+    el.style.color = "var(--ok)";
+  } else if(SYNC_URL){
+    el.textContent = "● URL saved but connection failed — deployment check karo";
+    el.style.color = "var(--danger)";
+  } else {
+    el.textContent = "● Not connected — pehle Apps Script URL jodo";
+    el.style.color = "#8a7f66";
+  }
+}
+
+async function initSync(){
+  try{
+    const r = await window.storage.get("config:appsScriptUrl", false);
+    if(r && r.value){
+      SYNC_URL = r.value;
+      document.getElementById("syncUrl").value = SYNC_URL;
+    }
+  }catch(e){}
+  if(SYNC_URL){
+    const ok = await checkConnection();
+    setSyncStatus(ok);
+  } else {
+    setSyncStatus(false);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", async ()=>{
+  populateCentreSelects();
+  buildCapTable("repairedTable","rep");
+  buildCapTable("dtcTable","dtc");
+  buildOilGrid();
+
+  document.getElementById("monthInput").value = defaultMonth();
+  document.getElementById("fromMonth").value = defaultMonth();
+  document.getElementById("toMonth").value = defaultMonth();
+
+  await initSync();
+
+  document.getElementById("syncSaveBtn").addEventListener("click", async ()=>{
+    const url = document.getElementById("syncUrl").value.trim();
+    if(!url){ toast("URL daalo pehle"); return; }
+    SYNC_URL = url;
+    try{ await window.storage.set("config:appsScriptUrl", url, false); }catch(e){}
+    document.getElementById("syncStatus").textContent = "● Connecting…";
+    const ok = await checkConnection();
+    setSyncStatus(ok);
+    if(ok){
+      toast("Google Sheet se connect ho gaya");
+      await loadForEditing(document.getElementById("centreSelect").value, document.getElementById("monthInput").value);
+      refreshSavedList();
+    } else {
+      toast("Connect nahi ho paya — URL/deployment check karo");
+    }
+  });
+
+  document.querySelectorAll(".tab-btn").forEach(b=>{
+    b.addEventListener("click", ()=> switchTab(b.dataset.tab));
+  });
+
+  document.getElementById("centreSelect").addEventListener("change", async ()=>{
+    await loadForEditing(document.getElementById("centreSelect").value, document.getElementById("monthInput").value);
+    refreshSavedList();
+  });
+  document.getElementById("loadBtn").addEventListener("click", async ()=>{
+    await loadForEditing(document.getElementById("centreSelect").value, document.getElementById("monthInput").value);
+  });
+  document.getElementById("clearBtn").addEventListener("click", ()=>{
+    const centre = document.getElementById("centreSelect").value;
+    const ym = document.getElementById("monthInput").value;
+    populateForm(emptyEntry(centre, ym));
+    document.getElementById("entryStatus").textContent = "Form clear kar diya gaya";
+  });
+
+  document.getElementById("entryForm").addEventListener("submit", async (ev)=>{
+    ev.preventDefault();
+    if(!SYNC_URL){ toast("Pehle upar Google Sheet se connect karo"); return; }
+    const centre = document.getElementById("centreSelect").value;
+    const ym = document.getElementById("monthInput").value;
+    if(!ym){ toast("Pehle month-year chuno"); return; }
+    const entry = readFormIntoEntry(centre, ym);
+    try{
+      await saveEntryToStorage(entry);
+      toast(`${monthLabel(ym)} Google Sheet me save ho gaya`);
+      document.getElementById("entryStatus").textContent = `✓ ${monthLabel(ym)} sheet me save (${centre})`;
+      refreshSavedList();
+    }catch(e){
+      toast("Save nahi ho paya — connection check karo");
+    }
+  });
+
+  document.getElementById("genBtn").addEventListener("click", generateSummary);
+  document.getElementById("downloadBtn").addEventListener("click", downloadExcel);
+
+  await loadForEditing(document.getElementById("centreSelect").value, document.getElementById("monthInput").value);
+  refreshSavedList();
+});
+})();
+</script>
+</body>
+</html>
